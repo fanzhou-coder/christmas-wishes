@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Five gifts. Three chances. 60 seconds. Unwrap your Christmas wishes from SafeDriver Group.">
+<title>Unwrap your Christmas wishes</title>
+<style>
+:root{
+  --night:#14213d;
+  --deep:#0b1426;
+  --snow:#f1f5f9;
+  --red:#d62839;
+  --gold:#f4b942;
+  --pine:#2a9d6f;
+  --muted:#9fb0cc;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--deep);
+  color:var(--snow);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  display:flex;
+  justify-content:center;
+  padding:16px;
+}
+main{width:100%;max-width:720px}
+h1{
+  font:bold 20px/1.5 "Courier New",monospace;
+  margin:4px 0 14px;
+  text-align:center;
+  color:var(--gold);
+}
+.stage{
+  position:relative;
+  border:4px solid var(--snow);
+  border-radius:4px;
+  background:var(--night);
+  line-height:0;
+}
+canvas{
+  width:100%;
+  height:auto;
+  image-rendering:pixelated;
+  display:block;
+}
+.overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  background:rgba(11,20,38,.82);
+  line-height:1.5;
+  text-align:center;
+  padding:16px;
+}
+.overlay p{margin:0;max-width:32ch;font-size:16px}
+button{
+  font:bold 16px/1.4 "Courier New",monospace;
+  background:var(--red);
+  color:var(--snow);
+  border:0;
+  border-bottom:4px solid #8f1a26;
+  padding:12px 18px;
+  border-radius:4px;
+  cursor:pointer;
+}
+button:active{transform:translateY(2px)}
+button:focus-visible{
+  outline:3px solid var(--gold);
+  outline-offset:2px;
+}
+.card{
+  margin-top:14px;
+  background:var(--snow);
+  color:var(--night);
+  border-radius:6px;
+  padding:16px 18px;
+  min-height:96px;
+}
+.card p{
+  margin:0;
+  font-size:19px;
+  line-height:1.45;
+  max-width:60ch;
+}
+.pips{display:flex;gap:8px;margin-bottom:10px}
+.pips i{
+  width:14px;
+  height:14px;
+  border-radius:3px;
+  background:#c4cedd;
+}
+.pips i.on{background:var(--red)}
+.wishes p+p{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid #c4cedd;
+  font-size:17px;
+}
+.card button{margin-top:14px}
+.pad{
+  display:none;
+  justify-content:space-between;
+  margin-top:14px;
+  gap:10px;
+}
+.pad button{
+  flex:1;
+  font-size:18px;
+  padding:16px 0;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+@media (pointer:coarse){.pad{display:flex}}
+.bubble{
+  position:absolute;
+  z-index:3;
+  background:var(--snow);
+  color:var(--night);
+  font-size:15px;
+  line-height:1.35;
+  padding:10px 12px;
+  border-radius:8px;
+  border:3px solid var(--gold);
+  pointer-events:none;
+  transition:opacity .4s;
+  animation:pop .25s ease-out;
+}
+.bubble::after{
+  content:"";
+  position:absolute;
+  left:var(--t);
+  bottom:-11px;
+  margin-left:-8px;
+  border:8px solid transparent;
+  border-top-color:var(--gold);
+  border-bottom:0;
+}
+@keyframes pop{
+  from{transform:scale(.6);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
+@media (prefers-reduced-motion:reduce){
+  .bubble{animation:none}
+}
+footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+  margin-top:14px;
+}
+@media (max-width:480px){
+  h1{font-size:17px}
+  .card p{font-size:17px}
+  .bubble{font-size:13px;padding:8px 10px}
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Unwrap your Christmas wishes</h1>
+
+  <div class="stage">
+    <canvas
+      id="c"
+      width="640"
+      height="360"
+      aria-label="Christmas brick game"
+    ></canvas>
+    <div class="overlay" id="intro">
+      <p>
+        Bump your head into the five gift boxes to unwrap a wish.
+        You have 3 chances and 60 seconds.
+        Dodge icy gaps and snowmen, or jump on a snowman to squash it.
+      </p>
+      <button id="start">Start</button>
+      <p style="font-size:13px;color:var(--muted)">
+        Arrow keys or A / D to move, Space to jump
+      </p>
+    </div>
+  </div>
+
+  <div class="card" id="card" aria-live="polite">
+    <div class="pips" id="pips">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div id="out">
+      <p>Unwrap all five gifts before the clock runs out.</p>
+    </div>
+  </div>
+
+  <div class="pad">
+    <button id="bl" aria-label="Move left">&#9664;</button>
+    <button id="bj" aria-label="Jump">Jump</button>
+    <button id="br" aria-label="Move right">&#9654;</button>
+  </div>
+
+  <footer>Happy holidays from SafeDriver Group</footer>
+</main>
+
+<script>
+const WISHES=[
+  "May your inbox be empty and your coffee strong in the new year.",
+  "Wishing you a Christmas with zero delays, unlike the U-Bahn.",
+  "May every route in 2027 be green lights all the way.",
+  "Merry Christmas! Log off, recharge, and charge your EV too.",
+  "Hope your holidays are smoother than an empty Autobahn at 5 a.m.",
+  "May the new year bring the promotion you’ve earned and the parking spot you deserve.",
+  "Wishing you cozy evenings, great food, and zero work notifications.",
+  "May your Glühwein be hot and your Wi-Fi be stable.",
+  "Here’s to a 2027 with fewer meetings and more “let’s just do it.”",
+  "Merry Christmas to everyone who makes every pick-up on time.",
+  "May your holidays have more laughs than your team chat.",
+  "Wishing you time for friends, family, and an uninterrupted nap.",
+  "May your 2027 goals be bigger than your Christmas dinner plate.",
+  "Enjoy the break. The gym can wait until January 2nd. Maybe the 3rd.",
+  "May your year ahead be electric: quiet, powerful, and full of range.",
+  "Thanks for the teamwork this year. You made the hard days easier.",
+  "Wishing you snow when you want it and clear roads when you need them.",
+  "May your holiday playlist never play the same song twice.",
+  "Hope Santa’s sleigh delivers exactly what’s on your list.",
+  "May 2027 bring new ideas, new wins, and zero “per my last email.”",
+  "Merry Christmas! You’ve earned every cookie.",
+  "Here’s to the colleagues who bring the best snacks.",
+  "Wishing you a break so good you forget your password.",
+  "May your journey into 2027 be comfortable, punctual, and first class.",
+  "Time to switch to holiday mode. No charger needed.",
+  "May your biggest challenge this week be choosing the last cookie.",
+  "Wishing you Christmas lights, calm days, and a fully charged battery, inside and out.",
+  "Here’s to a year of growth: for you, for the team, and for your plants.",
+  "May your 2027 start with a plan and end with a story worth telling.",
+  "Merry Christmas! Pack the big suitcase. Adventure is on next year’s route.",
+  "Thanks for being the reason our clients say, “Wow, that was smooth.”",
+  "May your holidays be filled with the good kind of busy.",
+  "Wishing you a calm December and a bold January.",
+  "Hope your Christmas tree stays upright and your family stays chill.",
+  "May your best moments of 2026 be just the opening act.",
+  "Cheers to every early start, late finish, and last-minute save this year.",
+  "Merry Christmas! Take the scenic route this season.",
+  "May your holidays be tasty and your leftovers endless.",
+  "Wishing you the energy of a fast charger and the calm of a snowy morning.",
+  "Here’s to a 2027 with fewer deadlines and more high-fives.",
+  "May every plan in the new year land on time, on budget, and on point.",
+  "Merry Christmas! The world needs more people who show up like you do.",
+  "Wishing you a holiday with fewer screens and more fireplaces.",
+  "Hope your Christmas is full of surprises, the good ones, not the Deutsche Bahn kind.",
+  "May 2027 give you more free weekends than you planned for.",
+  "Take a breath and look back. You did good work this year.",
+  "Wishing you health, happiness, and a really good book.",
+  "May your year ahead feel like a green wave: one good light after another.",
+  "Merry Christmas! May the new year ride with you in the front seat.",
+  "See you in 2027: rested, ready, and refreshed."
+];
+
+const cv=document.getElementById("c");
+const ctx=cv.getContext("2d");
+const stage=document.querySelector(".stage");
+const W=640,H=360,G=300,S=34,T=60,PW=50,TH=52;
+const intro=document.getElementById("intro");
+const out=document.getElementById("out");
+const pips=[...document.querySelectorAll("#pips i")];
+
+let bricks=[],pits=[],foes=[],got=[],p;
+let keys={l:0,r:0,j:0};
+let running=false,over=false;
+let lives=3,left=T,inv=0,acc=0,last=0;
+
+const snow=Array.from({length:70},()=>({
+  x:Math.random()*W,
+  y:Math.random()*H,
+  r:1+Math.random()*2,
+  v:.3+Math.random()*.7
+}));
+
+const calm=matchMedia("(prefers-reduced-motion:reduce)").matches;
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+function reset(){
+  const pool=[...WISHES];
+
+  for(let i=pool.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+  }
+
+  const a=170+Math.random()*60;
+  const c=390+Math.random()*60;
+
+  pits=[{x:a,w:PW},{x:c,w:PW}];
+
+  bricks=pool.slice(0,5).map((t,i)=>({
+    x:40+i*118+Math.random()*34,
+    y:140+Math.random()*45,
+    t,
+    hit:false,
+    bump:0,
+    grow:0
+  }));
+
+  foes=[
+    [100,a-34],
+    [a+PW+10,c-34],
+    [c+PW+10,W-30]
+  ].map(([l,r])=>({
+    x:l+(r-l)*Math.random(),
+    l,r,
+    d:Math.random()<.5?-1:1,
+    v:.7+Math.random()*.6,
+    y:G-30,
+    alive:true
+  }));
+
+  got=[];
+  over=false;
+  lives=3;
+  left=T;
+  inv=0;
+  acc=0;
+
+  p={
+    x:20,
+    y:G-34,
+    w:22,
+    h:34,
+    vy:0,
+    ground:true,
+    face:1
+  };
+
+  stage.querySelectorAll(".bubble").forEach(e=>e.remove());
+  status();
+}
+
+function status(){
+  pips.forEach((e,i)=>e.classList.toggle("on",i<got.length));
+  out.innerHTML="<p>"+
+    (got.length
+      ?got.length+" of 5 wishes unwrapped."
+      :"Unwrap all five gifts before the clock runs out.")+
+    "</p>";
+}
+
+function bubble(b){
+  if(!running)return;
+
+  const e=document.createElement("div");
+  e.className="bubble";
+  e.textContent=b.t;
+  stage.appendChild(e);
+
+  const sw=stage.clientWidth;
+  const sc=sw/W;
+  const w=Math.min(240,sw-16);
+
+  e.style.width=w+"px";
+
+  const cx=(b.x+S/2)*sc;
+  const l=clamp(cx-w/2,8,sw-w-8);
+
+  e.style.left=l+"px";
+  e.style.setProperty("--t",clamp(cx-l,14,w-14)+"px");
+
+  const h=e.offsetHeight;
+  const treeTop=(b.y-TH)*sc;
+
+  // Keep wishes above the tree and gift box.
+  e.style.top=(treeTop-h-12)+"px";
+
+  setTimeout(()=>{
+    e.style.opacity=0;
+    setTimeout(()=>e.remove(),400);
+  },6500);
+}
+
+function hit(b){
+  if(b.hit)return;
+
+  b.hit=true;
+  b.bump=8;
+  got.push(b.t);
+
+  pips.forEach((e,i)=>e.classList.toggle("on",i<got.length));
+  out.innerHTML="<p>"+got.length+" of 5 wishes unwrapped.</p>";
+
+  setTimeout(()=>bubble(b),400);
+
+  if(got.length===5){
+    over=true;
+    setTimeout(()=>end(true),3200);
+  }
+}
+
+function end(win){
+  running=false;
+  stage.querySelectorAll(".bubble").forEach(e=>e.remove());
+
+  const head=win
+    ?"You unwrapped all five. Merry Christmas and a happy new year from all of us at SafeDriver Group."
+    :(left<=0?"Time’s up!":"Out of chances!")+
+      " You unwrapped "+got.length+" of 5 wishes.";
+
+  out.innerHTML=
+    (got.length
+      ?'<div class="wishes">'+
+        got.map(t=>"<p>"+esc(t)+"</p>").join("")+
+        "</div>"
+      :"")+
+    '<p style="margin-top:14px;font-weight:600">'+head+
+    '</p><button id="again">'+
+    (win?"Play again":"Try again")+
+    "</button>";
+
+  document.getElementById("again").onclick=()=>{
+    reset();
+    running=true;
+  };
+}
+
+function loseLife(){
+  if(over)return false;
+
+  lives--;
+  inv=100;
+
+  if(lives<=0){
+    over=true;
+    end(false);
+    return false;
+  }
+
+  return true;
+}
+
+function step(){
+  if(!over){
+    left-=1/60;
+
+    if(left<=0){
+      left=0;
+      over=true;
+      end(false);
+      return;
+    }
+  }
+
+  if(inv>0)inv--;
+
+  const pv=p.y;
+  const d=keys.r-keys.l;
+
+  if(d)p.face=d;
+
+  p.x=clamp(p.x+d*3.2,0,W-p.w);
+
+  if(keys.j&&p.ground)p.vy=-11.5;
+
+  p.vy+=.55;
+  p.y+=p.vy;
+  p.ground=false;
+
+  const pit=pits.find(q=>
+    p.x+p.w>q.x+6&&p.x<q.x+q.w-6
+  );
+
+  if(!pit&&p.y+p.h>=G){
+    p.y=G-p.h;
+    p.vy=0;
+    p.ground=true;
+  }
+
+  if(pit&&p.y+p.h>G+12){
+    if(loseLife()){
+      p.x=Math.max(0,pit.x-36);
+      p.y=G-p.h;
+      p.vy=0;
+    }
+    return;
+  }
+
+  for(const b of bricks){
+    if(p.x+p.w>b.x+2&&p.x<b.x+S-2){
+      if(p.vy<0&&pv>=b.y+S&&p.y<b.y+S){
+        p.y=b.y+S;
+        p.vy=1;
+        hit(b);
+      }
+      else if(
+        p.vy>=0&&
+        pv+p.h<=b.y&&
+        p.y+p.h>b.y
+      ){
+        p.y=b.y-p.h;
+        p.vy=0;
+        p.ground=true;
+      }
+    }
+
+    if(b.bump>0)b.bump--;
+    if(b.hit&&b.grow<1)b.grow=Math.min(1,b.grow+.04);
+  }
+
+  for(const f of foes){
+    if(!f.alive)continue;
+
+    f.x+=f.d*f.v;
+
+    if(f.x<f.l){
+      f.x=f.l;
+      f.d=1;
+    }
+
+    if(f.x>f.r){
+      f.x=f.r;
+      f.d=-1;
+    }
+
+    if(
+      p.x+p.w>f.x+3&&
+      p.x<f.x+25&&
+      p.y+p.h>f.y+4&&
+      p.y<f.y+30
+    ){
+      if(p.vy>0&&pv+p.h<=f.y+14){
+        f.alive=false;
+        p.vy=-8;
+      }
+      else if(inv<=0&&!over&&loseLife()){
+        p.vy=-6;
+        p.x=clamp(
+          p.x+(p.x<f.x?-36:36),
+          0,
+          W-p.w
+        );
+      }
+    }
+  }
+}
+
+function R(c,x,y,w,h){
+  ctx.fillStyle=c;
+  ctx.fillRect(Math.round(x),Math.round(y),w,h);
+}
+
+function snowman(f){
+  const x=f.x,y=f.y;
+
+  ctx.fillStyle="#f1f5f9";
+  ctx.beginPath();
+  ctx.arc(x+14,y+22,9,0,7);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x+14,y+9,7,0,7);
+  ctx.fill();
+
+  R("#1a1a1a",x+8,y-1,12,3);
+  R("#1a1a1a",x+10,y-6,8,6);
+  R("#d62839",x+8,y+15,12,3);
+  R("#1a1a1a",x+11,y+7,2,2);
+  R("#1a1a1a",x+15,y+7,2,2);
+  R("#f77f00",f.d>0?x+16:x+7,y+10,5,2);
+}
+
+function tree(cx,by,g){
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cx-22,by-70,44,70);
+  ctx.clip();
+
+  const b=by+(1-g)*TH;
+
+  R("#6b4226",cx-3,b-6,6,6);
+
+  for(let i=0;i<3;i++){
+    const w=14-i*3;
+    const y=b-6-i*12;
+
+    ctx.fillStyle=i%2?"#2a9d6f":"#1f7a55";
+    ctx.beginPath();
+    ctx.moveTo(cx-w,y);
+    ctx.lineTo(cx+w,y);
+    ctx.lineTo(cx,y-18);
+    ctx.fill();
+  }
+
+  R("#f4b942",cx-3,b-TH,6,6);
+  R("#d62839",cx-6,b-14,3,3);
+  R("#d62839",cx+3,b-26,3,3);
+  R("#f4b942",cx-2,b-38,3,3);
+
+  ctx.restore();
+}
+
+const bgc=document.createElement("canvas");
+bgc.width=W;
+bgc.height=H;
+const bulbs=[];
+
+function paintBg(){
+  const g=bgc.getContext("2d");
+
+  const r=(c,x,y,w,h)=>{
+    g.fillStyle=c;
+    g.fillRect(x,y,w,h);
+  };
+
+  const sky=g.createLinearGradient(0,0,0,G);
+  sky.addColorStop(0,"#0c1530");
+  sky.addColorStop(1,"#2a3f78");
+
+  g.fillStyle=sky;
+  g.fillRect(0,0,W,H);
+
+  for(let i=0;i<50;i++){
+    r(
+      "#f1f5f9",
+      Math.random()*W,
+      Math.random()*150,
+      1+(Math.random()<.2),
+      1
+    );
+  }
+
+  g.fillStyle="#f6efd0";
+  g.beginPath();
+  g.arc(588,64,15,0,7);
+  g.fill();
+
+  g.fillStyle="#121d3e";
+  g.beginPath();
+  g.arc(595,60,13,0,7);
+  g.fill();
+
+  [
+    [20,240,40],
+    [70,220,34],
+    [240,245,44],
+    [300,215,38],
+    [610,245,30]
+  ].forEach(([x,y,w])=>{
+    r("#101c3c",x,y,w,G-y);
+
+    for(let k=0;k<3;k++){
+      r("#f4b942",x+6+k*10,y+8+(k%2)*12,3,3);
+    }
+  });
+
+  const gt="#1c2d58";
+  const dm="#18284f";
+
+  r(gt,100,236,140,12);
+  r(gt,106,226,128,10);
+
+  for(let k=0;k<6;k++){
+    r(gt,104+k*25,248,10,52);
+  }
+
+  g.fillStyle="rgba(244,185,66,.18)";
+
+  for(let k=0;k<5;k++){
+    g.fillRect(114+k*25,248,15,52);
+  }
+
+  r(gt,152,216,36,10);
+  r(gt,158,206,6,10);
+  r(gt,176,208,6,8);
+  r(gt,166,198,8,18);
+  r("#f4b942",169,194,2,4);
+
+  r(dm,330,262,70,38);
+  g.fillStyle=dm;
+  g.beginPath();
+  g.arc(365,262,24,Math.PI,0);
+  g.fill();
+
+  r(dm,330,248,8,14);
+  r(dm,392,248,8,14);
+  r(dm,361,228,8,12);
+  r("#f4b942",364,214,2,14);
+  r("#f4b942",361,218,8,2);
+
+  for(let k=0;k<4;k++){
+    r("#f4b942",340+k*14,276,4,8);
+  }
+
+  r(gt,470,270,13,30);
+  r(gt,474,150,5,120);
+  r(gt,475,118,2,32);
+
+  g.fillStyle=gt;
+  g.beginPath();
+  g.arc(476.5,160,14,0,7);
+  g.fill();
+
+  r("#f4b942",463,158,27,2);
+  r("#d62839",475,114,2,4);
+
+  r(gt,552,282,18,18);
+  r(gt,556,214,10,70);
+  r(gt,553,214,16,5);
+  r("#f4b942",558,200,6,12);
+  r("#f4b942",556,204,10,2);
+
+  // Muted shops stay visually separate from the player.
+  [[24,44],[255,40],[405,46],[590,44]].forEach(([x,w])=>{
+    r("#35445a",x,278,w,22);
+    r("#a49370",x+5,283,w-10,9);
+
+    for(let k=0;k*8<w+8;k++){
+      r(k%2?"#8995a5":"#52667c",x-4+k*8,270,8,8);
+    }
+  });
+
+  g.strokeStyle="#0a1226";
+  g.lineWidth=1;
+
+  const cols=["#d62839","#f4b942","#2a9d6f","#4cc9f0"];
+
+  for(let s=0;s<4;s++){
+    g.beginPath();
+
+    for(let u=0;u<=8;u++){
+      const x=s*160+u*20;
+      const y=36+56*(u/8)*(1-u/8);
+
+      if(u)g.lineTo(x,y);
+      else g.moveTo(x,y);
+
+      if(u>0&&u<8){
+        bulbs.push({
+          x,
+          y:y+1,
+          c:cols[(s*8+u)%4]
+        });
+      }
+    }
+
+    g.stroke();
+  }
+}
+
+paintBg();
+
+function draw(){
+  ctx.drawImage(bgc,0,0);
+
+  const tt=performance.now();
+
+  bulbs.forEach((b,i)=>{
+    R(
+      calm||(Math.floor(tt/450)+i)%3?b.c:"#3a4a6e",
+      b.x-2,b.y,4,5
+    );
+  });
+
+  for(const s of snow){
+    if(!calm){
+      s.y+=s.v;
+      s.x+=Math.sin(s.y/30)*.3;
+
+      if(s.y>G){
+        s.y=-4;
+        s.x=Math.random()*W;
+      }
+    }
+
+    R("#f1f5f9",s.x,s.y,s.r,s.r);
+  }
+
+  let x0=0;
+
+  for(const q of [...pits,{x:W,w:0}]){
+    R("#f1f5f9",x0,G,q.x-x0,H-G);
+    R("#dbe4f0",x0,G+8,q.x-x0,H-G-8);
+    x0=q.x+q.w;
+  }
+
+  pits.forEach(q=>{
+    R("#070d1a",q.x,G,q.w,H-G);
+    R("#4cc9f0",q.x,G,q.w,4);
+  });
+
+  for(const b of bricks){
+    const y=b.y-(b.bump>4?(8-b.bump)*2:b.bump*2);
+    const c=b.hit?"#6b7a99":"#d62839";
+    const r=b.hit?"#4e5b78":"#f4b942";
+
+    R("#1a1a1a",b.x-2,y-2,S+4,S+4);
+    R(c,b.x,y,S,S);
+    R(r,b.x+S/2-3,y,6,S);
+    R(r,b.x,y+S/2-3,S,6);
+
+    if(!b.hit){
+      R(r,b.x+S/2-8,y-6,7,6);
+      R(r,b.x+S/2+1,y-6,7,6);
+    }
+
+    if(b.hit)tree(b.x+S/2,b.y,b.grow);
+  }
+
+  foes.forEach(f=>{
+    if(f.alive)snowman(f);
+  });
+
+  if(!(inv>0&&Math.floor(inv/6)%2)){
+    const x=p.x,y=p.y,f=p.face;
+
+    R("#1a1a1a",x+2,y+22,7,12);
+    R("#1a1a1a",x+13,y+22,7,12);
+    R("#222a3d",x,y+12,22,13);
+    R("#f1f5f9",x+8,y+12,6,10);
+    R("#d62839",x+10,y+14,2,6);
+    R("#f1f5f9",f>0?x+19:x-1,y+14,4,6);
+    R("#f2c9a0",x+4,y+3,14,11);
+    R("#1a1a1a",f>0?x+12:x+7,y+7,3,3);
+    R("#d62839",x+3,y-5,16,9);
+    R("#d62839",f>0?x-2:x+16,y-2,6,5);
+    R("#f1f5f9",x+2,y+2,18,3);
+    R("#f1f5f9",f>0?x-4:x+19,y,4,4);
+  }
+
+  ctx.font="bold 14px 'Courier New',monospace";
+  ctx.textBaseline="top";
+  ctx.fillStyle="#f1f5f9";
+  ctx.textAlign="left";
+  ctx.fillText("Gifts "+got.length+"/5",12,10);
+
+  ctx.fillStyle=left<=10?"#ff6b6b":"#f4b942";
+  ctx.textAlign="center";
+  ctx.fillText(Math.ceil(left)+"s",W/2,10);
+
+  for(let i=0;i<lives;i++){
+    R("#d62839",W-24-i*16,10,10,10);
+  }
+}
+
+function loop(t){
+  const dt=Math.min(100,t-last||16);
+  last=t;
+
+  if(running){
+    acc+=dt;
+
+    while(acc>=16.67&&running){
+      step();
+      acc-=16.67;
+    }
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function key(e,v){
+  const k=e.key;
+  let m=1;
+
+  if(k==="ArrowLeft"||k==="a"||k==="A")keys.l=v;
+  else if(k==="ArrowRight"||k==="d"||k==="D")keys.r=v;
+  else if(k===" "||k==="ArrowUp"||k==="w"||k==="W")keys.j=v;
+  else m=0;
+
+  if(m&&running)e.preventDefault();
+}
+
+addEventListener("keydown",e=>key(e,1));
+addEventListener("keyup",e=>key(e,0));
+
+addEventListener("blur",()=>{
+  keys.l=keys.r=keys.j=0;
+});
+
+[["bl","l"],["br","r"],["bj","j"]].forEach(([id,k])=>{
+  const el=document.getElementById(id);
+
+  el.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    keys[k]=1;
+  });
+
+  ["pointerup","pointerleave","pointercancel"].forEach(t=>{
+    el.addEventListener(t,()=>keys[k]=0);
+  });
+});
+
+document.getElementById("start").onclick=()=>{
+  intro.style.display="none";
+  reset();
+  running=true;
+};
+
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
